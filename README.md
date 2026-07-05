@@ -1,20 +1,40 @@
-# Proxmox GUI — monitoring kiosk for a 1424×280 1U screen
+<h1 align="center">Homelab GUI</h1>
 
-Web monitoring interface for a Proxmox homelab, designed for an ultra-wide 1U
-touchscreen (1424×280, ~5:1 ratio), running full screen in kiosk mode.
+<p align="center">
+  <em>A fast, touch-friendly monitoring dashboard for a Proxmox homelab —<br>
+  built for an ultra-wide 1U touchscreen (1424×280), responsive everywhere else.</em>
+</p>
 
-- **Grid view**: a single horizontal row of cards (scroll/swipe + snap).
-  Order: PVE host → LXC/VM (sorted by vmid) → NAS → router. Card background
-  color reflects status (green=running, red=stopped, orange=paused,
-  gray=unknown).
-- **Detail view** (tap a card): full screen, vertical scroll. Detailed metrics,
-  charts (rrddata drawn on a canvas), optional embedded Grafana panel, Loki
-  logs. Close with the `‹ back` button, the `Esc` key, or a swipe down.
-- **Backend proxy**: the Proxmox API token stays server-side. The frontend only
-  talks to the backend (single origin, no CORS). Polls every 3 s.
-- **Responsive**: optimized for the 1U (single-row swipe layout on short
-  viewports); on larger screens it reflows into a wrapping grid that scrolls
-  vertically, so it also works on a desktop or tablet.
+<p align="center">
+  <a href="https://github.com/yves-chevallier/homelab-gui/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/yves-chevallier/homelab-gui/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+  <img alt="Node >= 20" src="https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg">
+  <img alt="Dependencies: 3" src="https://img.shields.io/badge/deps-3-lightgrey.svg">
+  <img alt="No build step" src="https://img.shields.io/badge/frontend-vanilla%20JS-yellow.svg">
+</p>
+
+---
+
+At a glance: one aggregated poll every 3 s, cards colored by status, tap any card
+for charts + logs, and a backend proxy that keeps your Proxmox token server-side.
+
+## ✨ Features
+
+- 🟩 **Status at a glance** — one horizontal row of cards, colored by state
+  (green=running, red=stopped, orange=paused, gray=unknown). Order: PVE host →
+  LXC/VM (by vmid) → NAS → router.
+- 👆 **Touch-first** — swipe the grid horizontally, tap a card to zoom into a
+  full-screen detail view, swipe down / `‹ back` / `Esc` to return.
+- 📈 **Detail view** — live metrics, CPU/RAM/network charts (Proxmox `rrddata`
+  drawn on a canvas), an optional embedded Grafana panel, and recent Loki logs.
+- 🔒 **Secure by design** — the Proxmox API token never reaches the browser. The
+  frontend talks only to the backend proxy (single origin, no CORS).
+- 📱 **Responsive** — optimized for the 1U (single-row swipe layout on short
+  screens); reflows into a wrapping vertical grid on desktops and tablets.
+- 🪶 **Lightweight** — vanilla JS frontend (no build step, no CDN), 3 backend
+  dependencies, stores nothing (no `localStorage`).
+
+## 🧱 Architecture
 
 ```
 Browser (kiosk)
@@ -25,6 +45,19 @@ Express backend  ──►  PVE API   https://192.168.20.2:8006  (token, cert ig
                  ──►  Loki       http://…:3100    (detail-view logs)
                  ──►  Grafana    http://…:3000    (proxied iframe /grafana)
 ```
+
+## 🚀 Quick start
+
+```sh
+git clone https://github.com/yves-chevallier/homelab-gui.git
+cd homelab-gui
+npm install
+cp .env.example .env         # then set PVE_TOKEN_ID / PVE_TOKEN_SECRET
+npm start                    # → http://localhost:8080
+```
+
+Need a token? See [Read-only Proxmox token](#read-only-proxmox-token). Deploying
+to your monitoring LXC? See [Inside LXC 200 (Docker)](#inside-lxc-200-docker-with-the-existing-stack).
 
 ## Layout
 
@@ -160,6 +193,18 @@ service name, and the PVE host by IP). Set the token in the stack's `.env`, then
 docker compose up -d --build proxmox-gui
 # → http://192.168.20.50:8080
 ```
+
+## Development
+
+```sh
+npm run dev     # start with --watch (auto-restart on change)
+npm run check   # syntax-check all JS + validate config/cards.json
+npm test        # boot the server and assert it serves /api/config + the UI
+```
+
+CI (GitHub Actions) runs `check` + `test` on Node 20 and 22 and builds the
+Docker image on every push and pull request — see
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Kiosk
 

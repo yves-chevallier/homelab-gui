@@ -6,7 +6,9 @@
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "node --watch server/index.js"
+    "dev": "node --watch server/index.js",
+    "check": "node --check server/index.js && node --check server/config.js && node --check server/upstream.js && node --check public/app.js && node -e \"JSON.parse(require('fs').readFileSync('config/cards.json'))\"",
+    "test": "node scripts/smoke.mjs"
   },
   "engines": {
     "node": ">=20"
