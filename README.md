@@ -8,9 +8,9 @@
 <p align="center">
   <a href="https://github.com/yves-chevallier/homelab-gui/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/yves-chevallier/homelab-gui/actions/workflows/ci.yml/badge.svg"></a>
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-  <img alt="Node >= 20" src="https://img.shields.io/badge/node-%3E%3D20-brightgreen.svg">
+  <img alt="Node 20+" src="https://img.shields.io/badge/node-20%2B-brightgreen.svg">
   <img alt="Dependencies: 3" src="https://img.shields.io/badge/deps-3-lightgrey.svg">
-  <img alt="No build step" src="https://img.shields.io/badge/frontend-vanilla%20JS-yellow.svg">
+  <img alt="Frontend: vanilla JS" src="https://img.shields.io/badge/frontend-vanilla%20JS-yellow.svg">
 </p>
 
 ---
