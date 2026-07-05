@@ -1,0 +1,28 @@
+[
+  {
+    "id": "nas",
+    "type": "nas",
+    "name": "hodor (NAS)",
+    "grafana": "/grafana/d/synology?kiosk&theme=dark",
+    "queries": {
+      "up": "clamp_max(count(sysUpTime{host=\"hodor\"}), 1)",
+      "cpu": "clamp_max((ssCpuUser{host=\"hodor\"} + ssCpuSystem{host=\"hodor\"}) / 100, 1)",
+      "mem": "hrStorageUsed{host=\"hodor\", hrStorageDescr=\"Physical memory\"} * hrStorageAllocationUnits{host=\"hodor\", hrStorageDescr=\"Physical memory\"}",
+      "memMax": "hrStorageSize{host=\"hodor\", hrStorageDescr=\"Physical memory\"} * hrStorageAllocationUnits{host=\"hodor\", hrStorageDescr=\"Physical memory\"}",
+      "uptime": "sysUpTime{host=\"hodor\"} / 100"
+    }
+  },
+  {
+    "id": "router",
+    "type": "router",
+    "name": "opnsense (Router)",
+    "grafana": "/grafana/d/opnsense?kiosk&theme=dark",
+    "queries": {
+      "up": "clamp_max(count(system_uptime{host=\"opnsense\"}), 1)",
+      "cpu": "clamp_max(1 - avg(cpu_usage_idle{host=\"opnsense\", cpu=\"cpu-total\"}) / 100, 1)",
+      "mem": "max(mem_used{host=\"opnsense\"})",
+      "memMax": "max(mem_total{host=\"opnsense\"})",
+      "uptime": "max(system_uptime{host=\"opnsense\"})"
+    }
+  }
+]

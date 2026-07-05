@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Homelab</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <!-- Grid view: single horizontal row of cards on the 1U, reflows on large screens -->
+  <main id="grid" class="grid" aria-label="Monitoring cards"></main>
+
+  <!-- Connection status pill -->
+  <div id="conn" class="conn ok" title="Connection status">live</div>
+
+  <!-- Detail view (full screen overlay) -->
+  <section id="detail" class="detail hidden" aria-hidden="true">
+    <header class="detail-head">
+      <button id="back" class="back" aria-label="Back">‹ back</button>
+      <h1 id="detail-title">—</h1>
+      <span id="detail-status" class="status-pill">—</span>
+      <div class="detail-tabs">
+        <button data-tab="charts" class="tab active">Graphs</button>
+        <button data-tab="grafana" class="tab">Grafana</button>
+        <button data-tab="logs" class="tab">Logs</button>
+      </div>
+    </header>
+    <div class="detail-body">
+      <section data-panel="charts" class="panel">
+        <div id="detail-metrics" class="metrics"></div>
+        <div class="charts">
+          <figure><figcaption>CPU %</figcaption><canvas data-chart="cpu"></canvas></figure>
+          <figure><figcaption>RAM %</figcaption><canvas data-chart="mem"></canvas></figure>
+          <figure><figcaption>Network (KB/s)</figcaption><canvas data-chart="net"></canvas></figure>
+        </div>
+      </section>
+      <section data-panel="grafana" class="panel hidden">
+        <iframe id="grafana-frame" title="Grafana" referrerpolicy="no-referrer"></iframe>
+      </section>
+      <section data-panel="logs" class="panel hidden">
+        <pre id="detail-logs" class="logs">Loading…</pre>
+      </section>
+    </div>
+  </section>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

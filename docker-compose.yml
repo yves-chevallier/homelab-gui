@@ -1,0 +1,36 @@
+# Add this service to the existing docker-compose stack running inside LXC 200
+# (alongside Prometheus / Loki / Grafana). Since it runs in the same LXC, it can
+# reach Prometheus/Loki/Grafana on localhost. The PVE API is on the host at :8006.
+#
+#   docker compose up -d --build proxmox-gui
+#
+services:
+  proxmox-gui:
+    build: .
+    # Or use a prebuilt image:
+    # image: ghcr.io/you/proxmox-gui:latest
+    container_name: proxmox-gui
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      POLL_MS: "3000"
+
+      PVE_HOST: "192.168.20.2"
+      PVE_PORT: "8006"
+      PVE_NODE: "pve"
+      PVE_TOKEN_ID: "${PVE_TOKEN_ID}"
+      PVE_TOKEN_SECRET: "${PVE_TOKEN_SECRET}"
+
+      # Same stack -> reach siblings by service name (or 127.0.0.1 if host-net)
+      PROM_URL: "http://prometheus:9090"
+      LOKI_URL: "http://loki:3100"
+      GRAFANA_URL: "http://grafana:3000"
+      LOKI_LABEL: "host"
+    # If Prometheus/Loki/Grafana are on a named compose network, join it:
+    # networks:
+    #   - monitoring
+# networks:
+#   monitoring:
+#     external: true
