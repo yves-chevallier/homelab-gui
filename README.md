@@ -1,91 +1,95 @@
-# Proxmox GUI — kiosk monitoring pour écran 1U 1424×280
+# Proxmox GUI — monitoring kiosk for a 1424×280 1U screen
 
-Interface web de monitoring du homelab Proxmox, pensée pour un écran tactile
-1U ultra-large (1424×280, ratio ~5:1), en plein écran / mode kiosque.
+Web monitoring interface for a Proxmox homelab, designed for an ultra-wide 1U
+touchscreen (1424×280, ~5:1 ratio), running full screen in kiosk mode.
 
-- **Vue grille** : une seule rangée horizontale de cartes (scroll/swipe + snap).
-  Ordre : host PVE → LXC/VM (triés par vmid) → NAS → routeur. Couleur de fond
-  selon le status (vert=running, rouge=stopped, orange=paused, gris=unknown).
-- **Vue détail** (tap sur une carte) : plein écran, scroll vertical. Métriques,
-  graphiques (rrddata tracés en canvas), panel Grafana embarqué (option), logs
-  Loki. Retour via bouton « ‹ retour », touche `Esc`, ou swipe vers le bas.
-- **Backend proxy** : le token API Proxmox reste côté serveur. Le frontend ne
-  parle qu'au backend (une seule origine, zéro CORS). Poll toutes les 3 s.
+- **Grid view**: a single horizontal row of cards (scroll/swipe + snap).
+  Order: PVE host → LXC/VM (sorted by vmid) → NAS → router. Card background
+  color reflects status (green=running, red=stopped, orange=paused,
+  gray=unknown).
+- **Detail view** (tap a card): full screen, vertical scroll. Detailed metrics,
+  charts (rrddata drawn on a canvas), optional embedded Grafana panel, Loki
+  logs. Close with the `‹ back` button, the `Esc` key, or a swipe down.
+- **Backend proxy**: the Proxmox API token stays server-side. The frontend only
+  talks to the backend (single origin, no CORS). Polls every 3 s.
+- **Responsive**: optimized for the 1U (single-row swipe layout on short
+  viewports); on larger screens it reflows into a wrapping grid that scrolls
+  vertically, so it also works on a desktop or tablet.
 
 ```
-Navigateur (kiosque)
-      │  fetch same-origin (poll 3s)
+Browser (kiosk)
+      │  same-origin fetch (poll 3s)
       ▼
-Backend Express  ──►  PVE API   https://192.168.20.2:8006  (token, cert ignoré)
-   (LXC 200)     ──►  Prometheus http://…:9090   (cartes NAS / routeur)
-                 ──►  Loki       http://…:3100    (logs vue détail)
-                 ──►  Grafana    http://…:3000    (iframe proxifiée /grafana)
+Express backend  ──►  PVE API   https://192.168.20.2:8006  (token, cert ignored)
+   (LXC 200)     ──►  Prometheus http://…:9090   (NAS / router cards)
+                 ──►  Loki       http://…:3100    (detail-view logs)
+                 ──►  Grafana    http://…:3000    (proxied iframe /grafana)
 ```
 
-## Arborescence
+## Layout
 
 ```
-server/          backend Express (proxy PVE / Prometheus / Loki / Grafana)
-  config.js      lecture des variables d'env + config/cards.json
-  upstream.js    appels PVE (cert auto-signé ignoré), Prometheus, Loki
-  index.js       routes API + service du frontend statique
-public/          frontend (HTML/CSS/JS vanilla, aucune dépendance CDN)
-config/cards.json  cartes externes (NAS, routeur) via requêtes Prometheus
+server/          Express backend (proxy for PVE / Prometheus / Loki / Grafana)
+  config.js      reads env vars + config/cards.json
+  upstream.js    PVE (self-signed cert ignored), Prometheus and Loki calls
+  index.js       API routes + serves the static frontend
+public/          frontend (vanilla HTML/CSS/JS, no CDN dependency)
+config/cards.json  external cards (NAS, router) via Prometheus queries
 Dockerfile / docker-compose.yml / .env.example
 ```
 
-## Endpoints backend
+## Backend endpoints
 
-| Route | Rôle |
-|-------|------|
-| `GET /api/config` | Config non-secrète pour le front (pollMs, node, grafana) |
-| `GET /api/grid` | **Une seule** réponse agrégée : host + guests + NAS + routeur |
-| `GET /api/rrd/node?timeframe=hour` | Séries temporelles du host PVE |
-| `GET /api/rrd/:type/:vmid?timeframe=hour` | Séries d'un guest (`lxc`/`qemu`) |
-| `GET /api/logs?host=<nom>&limit=150` | Logs Loki `{host="<nom>"}` |
-| `/grafana/*` | Reverse-proxy vers Grafana (embed iframe) |
+| Route | Purpose |
+|-------|---------|
+| `GET /api/config` | Non-secret config for the frontend (pollMs, node, grafana) |
+| `GET /api/grid` | **Single** aggregated response: host + guests + NAS + router |
+| `GET /api/rrd/node?timeframe=hour` | PVE host time series |
+| `GET /api/rrd/:type/:vmid?timeframe=hour` | Guest time series (`lxc`/`qemu`) |
+| `GET /api/logs?host=<name>&limit=150` | Loki logs `{host="<name>"}` |
+| `/grafana/*` | Reverse proxy to Grafana (iframe embed) |
 
-`/api/grid` est tolérant aux pannes : si une source échoue, la carte concernée
-passe en `unknown` sans casser le reste.
+`/api/grid` is fault tolerant: if a source fails, the affected card falls back to
+`unknown` without breaking the rest.
 
-## Variables d'environnement
+## Environment variables
 
-| Variable | Défaut | Description |
-|----------|--------|-------------|
-| `PORT` | `8080` | Port d'écoute du backend |
-| `POLL_MS` | `3000` | Intervalle de poll du frontend |
-| `PVE_HOST` | `192.168.20.2` | Host Proxmox |
-| `PVE_PORT` | `8006` | Port API Proxmox |
-| `PVE_NODE` | `pve` | Nom du node PVE |
-| `PVE_TOKEN_ID` | — | ID du token API (`user@realm!nom`) |
-| `PVE_TOKEN_SECRET` | — | Secret du token API |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8080` | Backend listen port |
+| `POLL_MS` | `3000` | Frontend poll interval |
+| `PVE_HOST` | `192.168.20.2` | Proxmox host |
+| `PVE_PORT` | `8006` | Proxmox API port |
+| `PVE_NODE` | `pve` | PVE node name |
+| `PVE_TOKEN_ID` | — | API token id (`user@realm!name`) |
+| `PVE_TOKEN_SECRET` | — | API token secret |
 | `PROM_URL` | `http://192.168.20.50:9090` | Prometheus |
 | `LOKI_URL` | `http://192.168.20.50:3100` | Loki |
-| `GRAFANA_URL` | `http://192.168.20.50:3000` | Grafana (vide = tab désactivé) |
-| `LOKI_LABEL` | `host` | Label Loki pour filtrer les logs par machine |
+| `GRAFANA_URL` | `http://192.168.20.50:3000` | Grafana (empty = tab disabled) |
+| `LOKI_LABEL` | `host` | Loki label used to filter logs per machine |
 
-Copier `.env.example` → `.env` et renseigner au minimum le token PVE.
+Copy `.env.example` → `.env` and set at least the PVE token.
 
-## Token Proxmox read-only
+## Read-only Proxmox token
 
-Créer un utilisateur dédié, un rôle en lecture seule (`VM.Audit` + `Sys.Audit`,
-plus `Datastore.Audit` pour voir le stockage), et un token. Sur le host PVE :
+Create a dedicated user, a read-only role (`VM.Audit` + `Sys.Audit`, plus
+`Datastore.Audit` to see storage), and a token. On the PVE host:
 
 ```sh
-# 1) utilisateur dédié dans le realm PVE
+# 1) dedicated user in the PVE realm
 pveum user add monitor@pve
 
-# 2) rôle read-only (audit)
+# 2) read-only (audit) role
 pveum role add Monitoring -privs "VM.Audit Sys.Audit Datastore.Audit"
 
-# 3) droits sur toute l'arbo, en lecture
+# 3) grant it read access over the whole tree
 pveum acl modify / -user monitor@pve -role Monitoring
 
-# 4) token SANS "privilege separation" pour qu'il hérite des droits du user
+# 4) token WITHOUT privilege separation so it inherits the user's privileges
 pveum user token add monitor@pve gui --privsep 0
 ```
 
-La dernière commande affiche le **secret UNE seule fois** :
+The last command prints the **secret only once**:
 
 ```
 ┌──────────────┬──────────────────────────────────────┐
@@ -96,69 +100,70 @@ La dernière commande affiche le **secret UNE seule fois** :
 └──────────────┴──────────────────────────────────────┘
 ```
 
-Reporter dans `.env` :
+Put it in `.env`:
 
 ```
 PVE_TOKEN_ID=monitor@pve!gui
 PVE_TOKEN_SECRET=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-> Le backend envoie `Authorization: PVEAPIToken=<id>=<secret>` et ignore le
-> certificat auto-signé du `:8006` (uniquement pour les appels au host PVE).
+> The backend sends `Authorization: PVEAPIToken=<id>=<secret>` and ignores the
+> self-signed certificate on `:8006` (for PVE host calls only).
 
-## Cartes NAS & routeur (Prometheus)
+## NAS & router cards (Prometheus)
 
-Ces cartes ne viennent pas de l'API PVE mais de requêtes Prometheus instantanées
-définies dans [`config/cards.json`](config/cards.json). Chaque carte fournit
-jusqu'à 5 requêtes : `up` (1/0 → running/stopped), `cpu` (0..1), `mem` (octets),
-`memMax` (octets), `uptime` (secondes).
+These cards don't come from the PVE API but from instant Prometheus queries
+defined in [`config/cards.json`](config/cards.json). Each card provides up to 5
+queries: `up` (1/0 → running/stopped), `cpu` (0..1), `mem` (bytes), `memMax`
+(bytes), `uptime` (seconds).
 
-**⚠️ Les noms de métriques dépendent de ton setup.** Les requêtes fournies sont
-des points de départ plausibles (Synology via `snmp_exporter`/HOST-RESOURCES-MIB,
-OPNsense via Telegraf). Vérifie les vrais noms dans l'explorateur Prometheus et
-ajuste. Une requête vide/absente → le champ affiche `—`, la carte reste visible.
+The queries shipped here are already tuned to this setup: the **Synology NAS**
+is scraped via `snmp_exporter` (UCD-SNMP `ssCpu*`, HOST-RESOURCES `hrStorage*`,
+`sysUpTime`, label `host="hodor"`); the **OPNsense router** via Telegraf
+(`cpu_usage_idle`, `mem_used`/`mem_total`, `system_uptime`, label
+`host="opnsense"`). If your metric names differ, check the Prometheus explorer
+and adjust — a missing/empty query just shows `—` and the card stays visible.
 
-## Grafana embarqué (optionnel)
+## Embedded Grafana (optional)
 
-Le champ `grafana` de chaque carte (dans `cards.json` ; à ajouter aussi pour les
-guests si tu veux) pointe vers une URL `/grafana/...` proxifiée par le backend.
-Pour que l'iframe s'affiche, côté Grafana :
+Each card's `grafana` field (in `cards.json`; add it for guests too if you want)
+points to a `/grafana/...` URL proxied by the backend. For the iframe to render,
+on the Grafana side:
 
 - `grafana.ini` → `[security] allow_embedding = true`
-- pour éviter le login : `[auth.anonymous] enabled = true` (org Viewer), ou
-  utiliser des liens de dashboard publics.
-- URL de type `/grafana/d/<uid>/<slug>?kiosk&theme=dark&panelId=<n>`.
+- to skip login: `[auth.anonymous] enabled = true` (Viewer org), or use public
+  dashboard links.
+- URL like `/grafana/d/<uid>/<slug>?kiosk&theme=dark&panelId=<n>`.
 
-Dashboards de référence : **10347** (Proxmox), **14284** (Synology),
-**OPNsense Cockpit**.
+Reference dashboards: **10347** (Proxmox), **14284** (Synology), **OPNsense
+Cockpit**.
 
-## Lancer
+## Run
 
-### En local (dev)
+### Locally (dev)
 
 ```sh
 npm install
-cp .env.example .env      # renseigner le token PVE
-export $(grep -v '^#' .env | xargs)   # ou utiliser un loader d'env
+cp .env.example .env      # set the PVE token
+export $(grep -v '^#' .env | xargs)   # or use an env loader
 npm start
 # → http://localhost:8080
 ```
 
-### Dans la LXC 200 (Docker, avec le stack existant)
+### Inside LXC 200 (Docker, with the existing stack)
 
-Ajouter le service au `docker-compose.yml` du stack de monitoring (voir le
-[`docker-compose.yml`](docker-compose.yml) fourni : il atteint Prometheus/Loki/
-Grafana par leur nom de service, et le PVE par son IP host). Renseigner le token
-dans le `.env` du stack, puis :
+Add the service to the monitoring stack's `docker-compose.yml` (see the provided
+[`docker-compose.yml`](docker-compose.yml): it reaches Prometheus/Loki/Grafana by
+service name, and the PVE host by IP). Set the token in the stack's `.env`, then:
 
 ```sh
 docker compose up -d --build proxmox-gui
 # → http://192.168.20.50:8080
 ```
 
-## Kiosque
+## Kiosk
 
-Pointer le navigateur de l'écran 1U en plein écran sur l'URL, par ex. Chromium :
+Point the 1U screen's browser full screen at the URL, e.g. Chromium:
 
 ```sh
 chromium --kiosk --incognito --noerrdialogs \
@@ -166,5 +171,5 @@ chromium --kiosk --incognito --noerrdialogs \
   --window-size=1424,280 http://192.168.20.50:8080
 ```
 
-L'app ne stocke rien (aucun `localStorage`), tout l'état est en mémoire ; un
-simple rechargement repart propre.
+The app stores nothing (no `localStorage`); all state is in memory, so a plain
+reload starts clean.
