@@ -1,8 +1,8 @@
 <h1 align="center">Homelab GUI</h1>
 
 <p align="center">
-  <em>A fast, touch-friendly monitoring dashboard for a Proxmox homelab —<br>
-  built for an ultra-wide 1U touchscreen (1424×280), responsive everywhere else.</em>
+  <em>A fast, touch-friendly monitoring dashboard for a Proxmox homelab,<br>
+  built for an ultra-wide 1U touchscreen (1424×280) and happy on any screen.</em>
 </p>
 
 <p align="center">
@@ -15,44 +15,71 @@
 
 ---
 
-At a glance: one aggregated poll every 3 s, cards colored by status, tap any card
-for charts + logs, and a backend proxy that keeps your Proxmox token server-side.
+So you racked a little 1U box with a skinny 1424×280 touchscreen on the front,
+and now you want it to actually show you something useful. That's what this is.
+It's a wall-of-cards dashboard for your Proxmox node: one card per LXC and VM,
+plus the host itself, plus your NAS and your router. Each card is colored by
+state, so a green wall means "all good" and a splash of red means "go look at
+that one". Tap a card and it zooms into a full-screen view with charts and logs.
 
-## 📸 Screenshots
+The whole thing is deliberately small. The frontend is plain HTML, CSS and
+JavaScript with no build step and no framework, so you can crack open a file,
+change it, and hit reload. The backend is a thin Express proxy whose only real
+job is to hold your Proxmox token so it never ends up in a kiosk browser that
+anyone walking past could poke at. Everything the UI shows comes through that
+one proxy, which also means no CORS headaches: single origin, done.
 
-**Grid view** — the 1U layout (1424×280): a single swipeable row of status cards.
+It's built for the 1U panel first, but it is not stuck there. On a phone,
+tablet or a regular monitor the same grid quietly reflows into wrapping rows, so
+you can check on things from the couch too.
+
+## Screenshots
+
+**Grid view** on the 1U panel (1424×280). One swipeable row of status cards, the
+Proxmox host first, then your guests, then the NAS and router at the end.
 
 ![Grid view on the 1U screen](docs/img/grid.png)
 
-**Detail view** — tap a card to zoom in: metrics tiles and CPU / RAM / network charts.
+**Detail view.** Tap any card and it zooms up: the numbers you care about as
+tiles, then CPU, RAM and network drawn straight onto a canvas from Proxmox's own
+`rrddata`. Swipe down, hit `‹ back`, or press `Esc` to pop back to the grid.
 
 ![Detail view with charts](docs/img/detail.png)
 
-**Responsive** — on a desktop or tablet the same grid reflows into wrapping rows.
+**Same app, bigger screen.** Drop it on a desktop or tablet and the row becomes
+a wrapping grid that scrolls vertically. Nothing to configure, it just adapts.
 
 ![Responsive grid on a larger screen](docs/img/responsive.png)
 
-> Screenshots are generated from the built-in **demo mode** (`npm run demo`) with
-> deterministic sample data — no real host required. Regenerate them any time with
-> `npm run screenshots`.
+Those shots aren't staged mockups. They come straight out of the built-in demo
+mode (`npm run demo`), which serves deterministic fake data so you can see the
+whole thing without a real host. Regenerate them any time with
+`npm run screenshots`.
 
-## ✨ Features
+## The short version of how it works
 
-- 🟩 **Status at a glance** — one horizontal row of cards, colored by state
-  (green=running, red=stopped, orange=paused, gray=unknown). Order: PVE host →
-  LXC/VM (by vmid) → NAS → router.
-- 👆 **Touch-first** — swipe the grid horizontally, tap a card to zoom into a
-  full-screen detail view, swipe down / `‹ back` / `Esc` to return.
-- 📈 **Detail view** — live metrics, CPU/RAM/network charts (Proxmox `rrddata`
-  drawn on a canvas), an optional embedded Grafana panel, and recent Loki logs.
-- 🔒 **Secure by design** — the Proxmox API token never reaches the browser. The
-  frontend talks only to the backend proxy (single origin, no CORS).
-- 📱 **Responsive** — optimized for the 1U (single-row swipe layout on short
-  screens); reflows into a wrapping vertical grid on desktops and tablets.
-- 🪶 **Lightweight** — vanilla JS frontend (no build step, no CDN), 3 backend
-  dependencies, stores nothing (no `localStorage`).
+- **One row, colored by state.** Cards sit in a single horizontal row you swipe
+  through (green for running, red for stopped, orange for paused, gray when a
+  source is unreachable). Order is fixed and predictable: PVE host, then LXC/VM
+  sorted by vmid, then NAS, then router.
+- **Made for fingers.** Swipe the grid sideways, tap to zoom in, swipe down or
+  hit back to zoom out. It's a touchscreen, so it behaves like one.
+- **Real detail when you want it.** The zoomed view gives you live metrics,
+  CPU/RAM/network charts from `rrddata`, an optional embedded Grafana panel, and
+  the last chunk of logs pulled from Loki.
+- **Your token stays home.** The Proxmox API token lives on the server. The
+  browser only ever talks to the local proxy, so there's nothing sensitive to
+  leak and no cross-origin nonsense to fight.
+- **Responsive without trying.** Tuned for the short-and-wide 1U, but it reflows
+  into a normal grid on anything taller.
+- **Barely any moving parts.** Vanilla JS frontend, three backend dependencies,
+  no `localStorage`, no build tooling. All state is in memory, so a reload
+  always starts you clean.
 
-## 🧱 Architecture
+## How the pieces fit
+
+The browser polls one endpoint every three seconds. The backend fans that out to
+whichever sources it needs and hands back a single tidy payload:
 
 ```
 Browser (kiosk)
@@ -64,46 +91,66 @@ Express backend  ──►  PVE API   https://192.168.20.2:8006  (token, cert ig
                  ──►  Grafana    http://…:3000    (proxied iframe /grafana)
 ```
 
-## 🚀 Quick start
+Guests and the host come from Proxmox directly. The NAS and router cards come
+from Prometheus queries (because your Synology and OPNsense already export
+metrics there), and the logs in the detail view come from Loki. Grafana is
+optional and only shows up as an embedded panel if you want it.
+
+## Quick start
+
+Grab it, install, point it at your node, run it:
 
 ```sh
 git clone https://github.com/yves-chevallier/homelab-gui.git
 cd homelab-gui
 npm install
 cp .env.example .env         # then set PVE_TOKEN_ID / PVE_TOKEN_SECRET
-npm start                    # → http://localhost:8080
+npm start                    # http://localhost:8080
 ```
 
-Need a token? See [Read-only Proxmox token](#read-only-proxmox-token). Deploying
-to your monitoring LXC? See [Inside LXC 200 (Docker)](#inside-lxc-200-docker-with-the-existing-stack).
+No token yet? Jump to [Read-only Proxmox token](#read-only-proxmox-token). Want
+to run it next to your monitoring stack instead? See
+[Inside LXC 200 (Docker)](#inside-lxc-200-docker-with-the-existing-stack). Just
+want to poke at the UI with no infra at all? `npm run demo` and open
+`http://localhost:8080`.
 
-## Layout
+## What lives where
 
 ```
 server/          Express backend (proxy for PVE / Prometheus / Loki / Grafana)
   config.js      reads env vars + config/cards.json
   upstream.js    PVE (self-signed cert ignored), Prometheus and Loki calls
   index.js       API routes + serves the static frontend
+  demo.js        deterministic fixtures for DEMO=1
 public/          frontend (vanilla HTML/CSS/JS, no CDN dependency)
 config/cards.json  external cards (NAS, router) via Prometheus queries
+scripts/         smoke test + screenshot generator
 Dockerfile / docker-compose.yml / .env.example
 ```
 
 ## Backend endpoints
 
+Everything the frontend needs is behind a handful of routes. You'll mostly care
+about `/api/grid`, the one it polls:
+
 | Route | Purpose |
 |-------|---------|
 | `GET /api/config` | Non-secret config for the frontend (pollMs, node, grafana) |
-| `GET /api/grid` | **Single** aggregated response: host + guests + NAS + router |
+| `GET /api/grid` | The single aggregated response: host + guests + NAS + router |
 | `GET /api/rrd/node?timeframe=hour` | PVE host time series |
 | `GET /api/rrd/:type/:vmid?timeframe=hour` | Guest time series (`lxc`/`qemu`) |
 | `GET /api/logs?host=<name>&limit=150` | Loki logs `{host="<name>"}` |
 | `/grafana/*` | Reverse proxy to Grafana (iframe embed) |
 
-`/api/grid` is fault tolerant: if a source fails, the affected card falls back to
-`unknown` without breaking the rest.
+`/api/grid` is deliberately forgiving. If one source is down or slow, that card
+falls back to `unknown` and everything else still renders. A flaky NAS shouldn't
+take your whole dashboard with it.
 
 ## Environment variables
+
+Copy `.env.example` to `.env` and, at a minimum, drop in your Proxmox token.
+Everything else already points at the reference setup, so tweak what doesn't
+match yours.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -112,20 +159,20 @@ Dockerfile / docker-compose.yml / .env.example
 | `PVE_HOST` | `192.168.20.2` | Proxmox host |
 | `PVE_PORT` | `8006` | Proxmox API port |
 | `PVE_NODE` | `pve` | PVE node name |
-| `PVE_TOKEN_ID` | — | API token id (`user@realm!name`) |
-| `PVE_TOKEN_SECRET` | — | API token secret |
+| `PVE_TOKEN_ID` | (unset) | API token id (`user@realm!name`) |
+| `PVE_TOKEN_SECRET` | (unset) | API token secret |
 | `PROM_URL` | `http://192.168.20.50:9090` | Prometheus |
 | `LOKI_URL` | `http://192.168.20.50:3100` | Loki |
-| `GRAFANA_URL` | `http://192.168.20.50:3000` | Grafana (empty = tab disabled) |
+| `GRAFANA_URL` | `http://192.168.20.50:3000` | Grafana (leave empty to hide the tab) |
 | `LOKI_LABEL` | `host` | Loki label used to filter logs per machine |
-| `DEMO` | — | `1` serves deterministic sample data (no PVE token / live sources) |
-
-Copy `.env.example` → `.env` and set at least the PVE token.
+| `DEMO` | (unset) | set to `1` for deterministic sample data, no token or live sources needed |
 
 ## Read-only Proxmox token
 
-Create a dedicated user, a read-only role (`VM.Audit` + `Sys.Audit`, plus
-`Datastore.Audit` to see storage), and a token. On the PVE host:
+The dashboard only ever reads, so give it a token that can only read. Make a
+dedicated user, an audit-only role (`VM.Audit` and `Sys.Audit`, plus
+`Datastore.Audit` if you want storage numbers), and a token for it. Run this on
+the PVE host:
 
 ```sh
 # 1) dedicated user in the PVE realm
@@ -141,7 +188,7 @@ pveum acl modify / -user monitor@pve -role Monitoring
 pveum user token add monitor@pve gui --privsep 0
 ```
 
-The last command prints the **secret only once**:
+That last command prints the secret exactly once, so grab it now:
 
 ```
 ┌──────────────┬──────────────────────────────────────┐
@@ -152,84 +199,91 @@ The last command prints the **secret only once**:
 └──────────────┴──────────────────────────────────────┘
 ```
 
-Put it in `.env`:
+Drop both halves into `.env`:
 
 ```
 PVE_TOKEN_ID=monitor@pve!gui
 PVE_TOKEN_SECRET=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-> The backend sends `Authorization: PVEAPIToken=<id>=<secret>` and ignores the
-> self-signed certificate on `:8006` (for PVE host calls only).
+Under the hood the backend sends `Authorization: PVEAPIToken=<id>=<secret>` and
+ignores the self-signed cert on `:8006`. That cert bypass applies to the PVE
+host only, nothing else.
 
-## NAS & router cards (Prometheus)
+## NAS and router cards (Prometheus)
 
-These cards don't come from the PVE API but from instant Prometheus queries
-defined in [`config/cards.json`](config/cards.json). Each card provides up to 5
-queries: `up` (1/0 → running/stopped), `cpu` (0..1), `mem` (bytes), `memMax`
-(bytes), `uptime` (seconds).
+The host and guests come from Proxmox, but your NAS and router don't live there,
+so those two cards are driven by plain Prometheus queries in
+[`config/cards.json`](config/cards.json). Each card can define up to five
+queries: `up` (1 or 0, becomes running/stopped), `cpu` (0..1), `mem` (bytes),
+`memMax` (bytes) and `uptime` (seconds).
 
-The queries shipped here are already tuned to this setup: the **Synology NAS**
-is scraped via `snmp_exporter` (UCD-SNMP `ssCpu*`, HOST-RESOURCES `hrStorage*`,
-`sysUpTime`, label `host="hodor"`); the **OPNsense router** via Telegraf
-(`cpu_usage_idle`, `mem_used`/`mem_total`, `system_uptime`, label
-`host="opnsense"`). If your metric names differ, check the Prometheus explorer
-and adjust — a missing/empty query just shows `—` and the card stays visible.
+The queries that ship here are already wired to the reference boxes. The
+**Synology NAS** is scraped through `snmp_exporter` (UCD-SNMP `ssCpu*`,
+HOST-RESOURCES `hrStorage*`, `sysUpTime`, label `host="hodor"`), and the
+**OPNsense router** through Telegraf (`cpu_usage_idle`, `mem_used` / `mem_total`,
+`system_uptime`, label `host="opnsense"`). Your metric names will probably
+differ, so open the Prometheus explorer, find the real ones, and edit the file.
+Nothing to break here: an empty or missing query just shows a dash, and the card
+stays put.
 
 ## Embedded Grafana (optional)
 
-Each card's `grafana` field (in `cards.json`; add it for guests too if you want)
-points to a `/grafana/...` URL proxied by the backend. For the iframe to render,
-on the Grafana side:
+If a card has a `grafana` field (they're set for the NAS and router, and you can
+add one to any guest), the detail view gets a Grafana tab that loads that panel
+through the `/grafana/...` proxy. For the iframe to actually render, tell Grafana
+it's allowed to be embedded:
 
-- `grafana.ini` → `[security] allow_embedding = true`
-- to skip login: `[auth.anonymous] enabled = true` (Viewer org), or use public
-  dashboard links.
-- URL like `/grafana/d/<uid>/<slug>?kiosk&theme=dark&panelId=<n>`.
+- in `grafana.ini`, set `[security] allow_embedding = true`
+- to skip the login screen, set `[auth.anonymous] enabled = true` (Viewer org),
+  or use public dashboard links
+- point the field at something like `/grafana/d/<uid>/<slug>?kiosk&theme=dark&panelId=<n>`
 
-Reference dashboards: **10347** (Proxmox), **14284** (Synology), **OPNsense
-Cockpit**.
+Good starting dashboards: `10347` (Proxmox), `14284` (Synology), and the OPNsense
+Cockpit one.
 
-## Run
+## Running it for real
 
-### Locally (dev)
+### Locally
 
 ```sh
 npm install
 cp .env.example .env      # set the PVE token
-export $(grep -v '^#' .env | xargs)   # or use an env loader
+export $(grep -v '^#' .env | xargs)   # or use your favorite env loader
 npm start
-# → http://localhost:8080
+# http://localhost:8080
 ```
 
-### Inside LXC 200 (Docker, with the existing stack)
+### Inside LXC 200, next to the rest of your stack
 
-Add the service to the monitoring stack's `docker-compose.yml` (see the provided
-[`docker-compose.yml`](docker-compose.yml): it reaches Prometheus/Loki/Grafana by
-service name, and the PVE host by IP). Set the token in the stack's `.env`, then:
+If Prometheus, Loki and Grafana already run in a compose stack on that LXC, this
+slots right in beside them. The provided [`docker-compose.yml`](docker-compose.yml)
+reaches those three by service name and talks to the PVE host by IP. Put the
+token in that stack's `.env` and bring it up:
 
 ```sh
 docker compose up -d --build proxmox-gui
-# → http://192.168.20.50:8080
+# http://192.168.20.50:8080
 ```
 
-## Development
+## Hacking on it
 
 ```sh
-npm run dev         # start with --watch (auto-restart on change)
-npm run check       # syntax-check all JS + validate config/cards.json
-npm test            # boot the server and assert it serves /api/config + the UI
-npm run demo        # run with deterministic sample data (DEMO=1), no token needed
-npm run screenshots # capture docs/img/*.png with headless Playwright
+npm run dev         # start with --watch, restarts on save
+npm run check       # syntax-check the JS and validate config/cards.json
+npm test            # boot the server and confirm it serves the API + UI
+npm run demo        # run with fake data (DEMO=1), no token required
+npm run screenshots # regenerate docs/img/*.png with headless Playwright
 ```
 
-CI (GitHub Actions) runs `check` + `test` on Node 20 and 22 and builds the
-Docker image on every push and pull request — see
+CI runs `check` and `test` on Node 20 and 22 and builds the Docker image on
+every push and pull request. It's all in
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-## Kiosk
+## Kiosk mode
 
-Point the 1U screen's browser full screen at the URL, e.g. Chromium:
+To make the 1U panel show the dashboard on boot, point a full-screen browser at
+it. Chromium does the job:
 
 ```sh
 chromium --kiosk --incognito --noerrdialogs \
@@ -237,5 +291,10 @@ chromium --kiosk --incognito --noerrdialogs \
   --window-size=1424,280 http://192.168.20.50:8080
 ```
 
-The app stores nothing (no `localStorage`); all state is in memory, so a plain
-reload starts clean.
+Since the app keeps zero state on disk (no `localStorage`, everything in memory),
+a plain reload always brings it back to a clean slate. Handy for an appliance you
+never really log into.
+
+## License
+
+MIT. Do what you like with it. See [LICENSE](LICENSE).
