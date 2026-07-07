@@ -7,8 +7,10 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
-    "check": "node --check server/index.js && node --check server/config.js && node --check server/upstream.js && node --check public/app.js && node -e \"JSON.parse(require('fs').readFileSync('config/cards.json'))\"",
-    "test": "node scripts/smoke.mjs"
+    "check": "node --check server/index.js && node --check server/config.js && node --check server/upstream.js && node --check server/demo.js && node --check public/app.js && node -e \"JSON.parse(require('fs').readFileSync('config/cards.json'))\"",
+    "test": "node scripts/smoke.mjs",
+    "demo": "DEMO=1 node server/index.js",
+    "screenshots": "node scripts/screenshot.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -17,5 +19,8 @@
     "express": "^4.19.2",
     "http-proxy-middleware": "^3.0.3",
     "undici": "^6.19.8"
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
   }
 }

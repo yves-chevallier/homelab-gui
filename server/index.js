@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 
 import { config, externalCards } from './config.js';
 import { pve, promInstant, lokiRange } from './upstream.js';
+import { demoGrid, demoRrd, demoLogs } from './demo.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -22,6 +23,10 @@ app.get('/api/config', (req, res) => {
 // --- Grid: one aggregated call the frontend polls every POLL_MS ----------
 // Returns cards already ordered: host, guests (by vmid), then external.
 app.get('/api/grid', async (req, res) => {
+  if (config.demo) {
+    res.set('Cache-Control', 'no-store');
+    return res.json(demoGrid());
+  }
   const cards = [];
 
   // 1) Host card
@@ -105,6 +110,7 @@ app.get('/api/grid', async (req, res) => {
 // --- Detail: time series -------------------------------------------------
 // Guests: /api/rrd/lxc/205?timeframe=hour   Host: /api/rrd/node?timeframe=hour
 app.get('/api/rrd/node', async (req, res) => {
+  if (config.demo) return res.json(demoRrd(1));
   const tf = sanitizeTimeframe(req.query.timeframe);
   try {
     const data = await pve(`/nodes/${config.pveNode}/rrddata?timeframe=${tf}&cf=AVERAGE`);
@@ -119,6 +125,7 @@ app.get('/api/rrd/:type/:vmid', async (req, res) => {
   if (!['lxc', 'qemu'].includes(type) || !/^\d+$/.test(vmid)) {
     return res.status(400).json({ error: 'bad type/vmid' });
   }
+  if (config.demo) return res.json(demoRrd((parseInt(vmid, 10) % 5) + 1));
   const tf = sanitizeTimeframe(req.query.timeframe);
   try {
     const data = await pve(
@@ -136,6 +143,7 @@ app.get('/api/logs', async (req, res) => {
   if (!host || !/^[\w.\-]+$/.test(host)) {
     return res.status(400).json({ error: 'bad host' });
   }
+  if (config.demo) return res.json(demoLogs(host));
   const limit = Math.min(parseInt(req.query.limit ?? '100', 10) || 100, 500);
   const logql = `{${config.lokiLabel}="${host}"}`;
   try {

@@ -18,6 +18,24 @@
 At a glance: one aggregated poll every 3 s, cards colored by status, tap any card
 for charts + logs, and a backend proxy that keeps your Proxmox token server-side.
 
+## 📸 Screenshots
+
+**Grid view** — the 1U layout (1424×280): a single swipeable row of status cards.
+
+![Grid view on the 1U screen](docs/img/grid.png)
+
+**Detail view** — tap a card to zoom in: metrics tiles and CPU / RAM / network charts.
+
+![Detail view with charts](docs/img/detail.png)
+
+**Responsive** — on a desktop or tablet the same grid reflows into wrapping rows.
+
+![Responsive grid on a larger screen](docs/img/responsive.png)
+
+> Screenshots are generated from the built-in **demo mode** (`npm run demo`) with
+> deterministic sample data — no real host required. Regenerate them any time with
+> `npm run screenshots`.
+
 ## ✨ Features
 
 - 🟩 **Status at a glance** — one horizontal row of cards, colored by state
@@ -100,6 +118,7 @@ Dockerfile / docker-compose.yml / .env.example
 | `LOKI_URL` | `http://192.168.20.50:3100` | Loki |
 | `GRAFANA_URL` | `http://192.168.20.50:3000` | Grafana (empty = tab disabled) |
 | `LOKI_LABEL` | `host` | Loki label used to filter logs per machine |
+| `DEMO` | — | `1` serves deterministic sample data (no PVE token / live sources) |
 
 Copy `.env.example` → `.env` and set at least the PVE token.
 
@@ -197,9 +216,11 @@ docker compose up -d --build proxmox-gui
 ## Development
 
 ```sh
-npm run dev     # start with --watch (auto-restart on change)
-npm run check   # syntax-check all JS + validate config/cards.json
-npm test        # boot the server and assert it serves /api/config + the UI
+npm run dev         # start with --watch (auto-restart on change)
+npm run check       # syntax-check all JS + validate config/cards.json
+npm test            # boot the server and assert it serves /api/config + the UI
+npm run demo        # run with deterministic sample data (DEMO=1), no token needed
+npm run screenshots # capture docs/img/*.png with headless Playwright
 ```
 
 CI (GitHub Actions) runs `check` + `test` on Node 20 and 22 and builds the

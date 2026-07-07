@@ -13,6 +13,10 @@ export const config = {
   port: parseInt(env('PORT', '8080'), 10),
   pollMs: parseInt(env('POLL_MS', '3000'), 10),
 
+  // Serve deterministic fixtures instead of hitting real sources (screenshots,
+  // offline demo). No PVE token or live Prometheus/Loki required.
+  demo: env('DEMO', '') === '1',
+
   // Proxmox VE
   pveHost: env('PVE_HOST', '192.168.20.2'),
   pvePort: parseInt(env('PVE_PORT', '8006'), 10),
